@@ -1,0 +1,555 @@
+// Import all our API URLs
+import {
+    LOGIN_URL,
+    GET_ME_URL,
+    CREATE_USER_URL,
+    LIST_USERS_URL,
+    RECOGNIZE_PLATE_URL,
+    GET_VEHICLE_BY_PLATE_URL,
+    GET_VEHICLE_BY_LICENSE_URL,
+    CREATE_VEHICLE_URL,
+    RENEW_LICENSE_URL
+} from './api.js';
+
+// === HELPER FUNCTIONS ===
+
+function getToken() {
+    return sessionStorage.getItem("access_token");
+}
+
+function protectPage() {
+    if (!getToken()) {
+        window.location.href = "index.html";
+        return false;
+    }
+    return true;
+}
+
+function logout() {
+    sessionStorage.removeItem("access_token");
+    window.location.href = "index.html";
+}
+
+async function fetchWithAuth(url, options = {}) {
+    const token = getToken();
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) logout();
+    return response;
+}
+
+async function fetchWithAuthFile(url, options = {}) {
+    const token = getToken();
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        ...options.headers,
+    };
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) logout();
+    return response;
+}
+
+// === LOGIN ===
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const errorMsg = document.getElementById("error-msg");
+
+    const formData = new URLSearchParams();
+    formData.append("username", email);
+    formData.append("password", password);
+
+    try {
+        const response = await fetch(LOGIN_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Login failed");
+
+        sessionStorage.setItem("access_token", data.access_token);
+        window.location.href = "dashboard.html";
+    } catch (error) {
+        errorMsg.textContent = error.message;
+    }
+}
+
+// === DASHBOARD ===
+
+export async function loadDashboard() {
+    if (!protectPage()) return;
+
+    try {
+        const response = await fetchWithAuth(GET_ME_URL);
+        const user = await response.json();
+        const contentDiv = document.getElementById("dashboard-content");
+        document.getElementById("user-email").textContent = user.email;
+
+        // Logout listener
+        const logoutBtn = document.getElementById("logout-btn");
+        if (logoutBtn) logoutBtn.addEventListener("click", logout);
+
+        if (user.role === "dmt") {
+            renderDmtDashboard(user);
+        } else if (user.role === "police") {
+            renderPoliceDashboard(user, contentDiv);
+        } else {
+            renderPublicDashboard(user, contentDiv);
+        }
+    } catch (error) {
+        console.error("Error loading dashboard:", error);
+    }
+}
+
+// === DMT ADMIN LOGIC (SPA) ===
+
+function renderDmtDashboard(user) {
+    const contentDiv = document.getElementById("dashboard-content");
+    contentDiv.className = 'dmt-dash';
+    contentDiv.innerHTML = `
+        <h3 style="margin-bottom: 20px; color: #555;">Welcome, ${user.email}</h3>
+        <div class="card welcome-card">
+            <h2>DMT Administration</h2>
+            <p>Manage system users, vehicle registrations, and oversee platform operations.</p>
+            <div class="admin-actions">
+                <button id="btn-users">Go to User Management</button>
+                <button id="btn-vehicle">Go to Vehicle Management</button>
+                <button id="btn-renew">Go to Renew Vehicle</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("btn-users").onclick = () => renderUserManagement(user);
+    document.getElementById("btn-vehicle").onclick = () => renderVehicleRegistration(user);
+    document.getElementById("btn-renew").onclick = () => renderLicenseRenewal(user);
+}
+
+function renderUserManagement(user) {
+    const contentDiv = document.getElementById("dashboard-content");
+    contentDiv.innerHTML = `
+        <button id="back-btn" class="back-btn">← Back to Menu</button>
+        <div class="card">
+            <h2>User Management</h2>
+            <form id="create-user-form">
+                <div class="input-group">
+                    <label for="new-email">Email Address</label>
+                    <input type="email" id="new-email" placeholder="user@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="new-password">Password</label>
+                    <input type="password" id="new-password" placeholder="Set a password" required>
+                </div>
+                <div class="input-group">
+                    <label for="new-role">User Role</label>
+                    <select id="new-role" required>
+                        <option value="public">Public User</option>
+                        <option value="police">Police Officer</option>
+                        <option value="dmt">DMT Administrator</option>
+                    </select>
+                </div>
+                <p id="create-error" class="error" style="text-align: center;"></p>
+                <p id="create-success" class="success" style="text-align: center;"></p>
+                <button type="submit" style="width: 100%;">Create User Account</button>
+            </form>
+
+            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 1em; color: #555;">System Users</h3>
+                    <button id="load-users-btn" style="padding: 5px 10px; font-size: 0.8em;">Refresh</button>
+                </div>
+                <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                    <table id="users-table" style="font-size: 0.9em; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Role</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("back-btn").onclick = () => renderDmtDashboard(user);
+    document.getElementById("create-user-form").addEventListener("submit", handleCreateUser);
+    document.getElementById("load-users-btn").addEventListener("click", loadAllUsers);
+    loadAllUsers(); // Auto-load users
+}
+
+function renderVehicleRegistration(user) {
+    const contentDiv = document.getElementById("dashboard-content");
+    contentDiv.innerHTML = `
+        <button id="back-btn" class="back-btn">← Back to Menu</button>
+        <div class="card">
+            <h2>Register New Vehicle</h2>
+            <form id="create-vehicle-form">
+                <div class="input-group">
+                    <label>Vehicle Number (Plate)</label>
+                    <input type="text" id="v-plate" placeholder="e.g., WP-CAB-1234" required>
+                </div>
+                <div class="input-group">
+                    <label>Revenue License No</label>
+                    <input type="text" id="v-license" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="input-group">
+                        <label>Class</label>
+                        <input type="text" id="v-class" placeholder="e.g., Car" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Fuel</label>
+                        <input type="text" id="v-fuel" placeholder="e.g., Petrol" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Owner Name</label>
+                    <input type="text" id="v-owner" required>
+                </div>
+                <div class="input-group">
+                    <label>Owner Address</label>
+                    <input type="text" id="v-address" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="input-group">
+                        <label>NIC</label>
+                        <input type="text" id="v-nic" required>
+                    </div>
+                    <div class="input-group">
+                        <label>District</label>
+                        <input type="text" id="v-district" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="input-group">
+                        <label>Valid From</label>
+                        <input type="date" id="v-valid-from" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Expiry</label>
+                        <input type="date" id="v-expiry" required>
+                    </div>
+                </div>
+                <p id="vehicle-error" class="error"></p>
+                <p id="vehicle-success" class="success"></p>
+                <button type="submit" style="width: 100%; background: #28a745;">Register Vehicle</button>
+            </form>
+        </div>
+    `;
+
+    document.getElementById("back-btn").onclick = () => renderDmtDashboard(user);
+    document.getElementById("create-vehicle-form").addEventListener("submit", handleCreateVehicle);
+}
+
+function renderLicenseRenewal(user) {
+    const contentDiv = document.getElementById("dashboard-content");
+    contentDiv.innerHTML = `
+        <button id="back-btn" class="back-btn">← Back to Menu</button>
+        <div class="card">
+            <h2>Renew License</h2>
+            <form id="renew-license-form">
+                <div class="input-group">
+                    <label>Vehicle Number (Plate)</label>
+                    <input type="text" id="renew-plate" placeholder="Enter Plate Number" required>
+                </div>
+                <div class="input-group">
+                    <label>New Expiry Date</label>
+                    <input type="date" id="renew-expiry" required>
+                </div>
+                <p id="renew-error" class="error"></p>
+                <p id="renew-success" class="success"></p>
+                <button type="submit" style="width: 100%; background: #007bff;">Renew License</button>
+            </form>
+        </div>
+    `;
+
+    document.getElementById("back-btn").onclick = () => renderDmtDashboard(user);
+    document.getElementById("renew-license-form").addEventListener("submit", handleRenewLicense);
+}
+
+// === DMT ACTION HANDLERS ===
+
+async function handleCreateUser(e) {
+    e.preventDefault();
+    const email = document.getElementById("new-email").value;
+    const password = document.getElementById("new-password").value;
+    const role = document.getElementById("new-role").value;
+    const errorMsg = document.getElementById("create-error");
+    const successMsg = document.getElementById("create-success");
+
+    errorMsg.textContent = "";
+    successMsg.textContent = "";
+
+    try {
+        const response = await fetchWithAuth(CREATE_USER_URL, {
+            method: "POST",
+            body: JSON.stringify({ email, password, role })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Failed to create user");
+
+        successMsg.textContent = `User ${data.email} created successfully!`;
+        e.target.reset();
+        loadAllUsers();
+    } catch (error) {
+        errorMsg.textContent = error.message;
+    }
+}
+
+async function handleCreateVehicle(e) {
+    e.preventDefault();
+    const errorMsg = document.getElementById("vehicle-error");
+    const successMsg = document.getElementById("vehicle-success");
+    errorMsg.textContent = "";
+    successMsg.textContent = "";
+
+    const vehicleData = {
+        vehicle_number: document.getElementById("v-plate").value.trim(),
+        licence_number: document.getElementById("v-license").value.trim(),
+        vehicle_class: document.getElementById("v-class").value.trim(),
+        fuel_type: document.getElementById("v-fuel").value.trim(),
+        owner_name: document.getElementById("v-owner").value.trim(),
+        owner_address: document.getElementById("v-address").value.trim(),
+        owner_nic: document.getElementById("v-nic").value.trim(),
+        district: document.getElementById("v-district").value.trim(),
+        licence_valid_from: document.getElementById("v-valid-from").value,
+        licence_expiry_date: document.getElementById("v-expiry").value
+    };
+
+    try {
+        const response = await fetchWithAuth(CREATE_VEHICLE_URL, {
+            method: "POST",
+            body: JSON.stringify(vehicleData)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Failed to register vehicle");
+
+        successMsg.textContent = `Vehicle ${data.vehicle_number} registered successfully!`;
+        e.target.reset();
+    } catch (error) {
+        errorMsg.textContent = error.message;
+    }
+}
+
+async function handleRenewLicense(e) {
+    e.preventDefault();
+    const plate = document.getElementById("renew-plate").value.trim();
+    const newExpiry = document.getElementById("renew-expiry").value;
+    const errorMsg = document.getElementById("renew-error");
+    const successMsg = document.getElementById("renew-success");
+
+    errorMsg.textContent = "";
+    successMsg.textContent = "";
+
+    if (!plate || !newExpiry) {
+        errorMsg.textContent = "Please fill in all fields.";
+        return;
+    }
+
+    try {
+        const response = await fetchWithAuth(RENEW_LICENSE_URL(plate), {
+            method: "PUT",
+            body: JSON.stringify({ new_expiry_date: newExpiry })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Failed to renew license");
+
+        successMsg.textContent = `License for ${data.vehicle_number} renewed until ${data.licence_expiry_date}!`;
+        e.target.reset();
+    } catch (error) {
+        errorMsg.textContent = error.message;
+    }
+}
+
+async function loadAllUsers() {
+    const tableBody = document.getElementById("users-table-body");
+    tableBody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
+
+    try {
+        const response = await fetchWithAuth(LIST_USERS_URL);
+        const users = await response.json();
+        tableBody.innerHTML = "";
+
+        if (users.length === 0) {
+            tableBody.innerHTML = "<tr><td colspan='3'>No users found.</td></tr>";
+            return;
+        }
+
+        users.forEach(user => {
+            const row = document.createElement("tr");
+            row.innerHTML = `<td>${user.email}</td><td>${user.role}</td><td>${user.id}</td>`;
+            tableBody.appendChild(row);
+        });
+    } catch (error) {
+        tableBody.innerHTML = `<tr><td colspan='3'>Error: ${error.message}</td></tr>`;
+    }
+}
+
+// === POLICE DASHBOARD LOGIC ===
+
+function renderPoliceDashboard(user, contentDiv) {
+    contentDiv.className = 'police-dash';
+    contentDiv.innerHTML = `
+        <div style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh;">
+            
+            <div style="text-align: center; width: 100%; margin-bottom: 30px;">
+                <h2 style="margin: 0; color: var(--primary-color); font-size: 1.8em;">Traffic Control Unit</h2>
+                <p style="margin: 5px 0 0; color: #666; font-size: 0.9em;">Welcome, ${user.email}</p>
+            </div>
+
+            <div id="scan-results-container" style="width: 100%; max-width: 400px; margin-bottom: 20px;">
+                <div id="scan-result" class="scan-result-box" style="display: none;"></div>
+                <div id="scan-result-summary"></div>
+            </div>
+            <div class="scan-container" style="margin: 0;">
+                <label for="plate-image-input" class="scan-btn-label" style="padding: 40px 60px; border-radius: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+                    <span class="scan-icon" style="font-size: 3em; margin-bottom: 10px;">📷</span>
+                    <span style="font-size: 1.5em;">Scan Number Plate</span>
+                    <span style="font-size: 0.9em; font-weight: 400; opacity: 0.8;">Tap to open camera</span>
+                </label>
+                <input type="file" id="plate-image-input" accept="image/*" capture="environment">
+            </div>
+        </div>
+    `;
+
+    const fileInput = document.getElementById("plate-image-input");
+    if (fileInput) {
+        fileInput.addEventListener("change", () => {
+            if (fileInput.files.length > 0) {
+                document.getElementById("scan-result").style.display = "block";
+                handlePlateScan();
+            }
+        });
+    }
+}
+
+async function handlePlateScan() {
+    const fileInput = document.getElementById("plate-image-input");
+    const nextFileInput = document.getElementById("plate-image-input-next");
+    const resultBox = document.getElementById("scan-result");
+    const summaryBox = document.getElementById("scan-result-summary");
+    const file = fileInput?.files[0] || nextFileInput?.files[0];
+
+    if (!file) {
+        resultBox.textContent = "Please select an image file first.";
+        resultBox.className = "scan-result-box error";
+        return;
+    }
+
+    resultBox.textContent = "Scanning... (Step 1/2)";
+    resultBox.className = "scan-result-box loading";
+    summaryBox.innerHTML = "";
+
+    try {
+        const anprFormData = new FormData();
+        anprFormData.append("file", file);
+        const anprResponse = await fetchWithAuthFile(RECOGNIZE_PLATE_URL, { method: "POST", body: anprFormData });
+        const anprData = await anprResponse.json();
+
+        if (!anprResponse.ok) throw new Error(anprData.detail || "Failed to scan plate.");
+        if (!anprData.plates || anprData.plates.length === 0) throw new Error("No plate detected in the image.");
+
+        const detectedPlate = anprData.plates[0];
+        resultBox.textContent = detectedPlate;
+        resultBox.className = "scan-result-box";
+        resultBox.textContent += " ... (Fetching details, Step 2/2)";
+
+        const registryResponse = await fetchWithAuth(GET_VEHICLE_BY_PLATE_URL(detectedPlate));
+        const vehicleData = await registryResponse.json();
+
+        if (!registryResponse.ok) throw new Error(vehicleData.detail || "Could not get vehicle details.");
+
+        resultBox.textContent = detectedPlate;
+        displayVehicleSummary(vehicleData);
+    } catch (error) {
+        console.error("Error in scan process:", error);
+        const licenseNo = licenseInput.value.trim();
+
+        if (!licenseNo) {
+            errorMsg.textContent = "Please enter a license number.";
+            return;
+        }
+
+        errorMsg.textContent = "Searching...";
+
+        try {
+            const response = await fetchWithAuth(GET_VEHICLE_BY_LICENSE_URL(licenseNo));
+            const vehicle = await response.json();
+
+            if (!response.ok) throw new Error(vehicle.detail || "Vehicle not found.");
+
+            // Clear error and input
+            errorMsg.textContent = "";
+            licenseInput.value = "";
+
+            // Calculate Days to Renew
+            const today = new Date();
+            const expiryDate = new Date(vehicle.licence_expiry_date);
+            const timeDiff = expiryDate - today;
+            const daysToRenew = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+            let statusColor = "#28a745"; // Green
+            let statusText = `${daysToRenew} days`;
+
+            if (daysToRenew < 0) {
+                statusColor = "#dc3545"; // Red
+                statusText = `Expired ${Math.abs(daysToRenew)} days ago`;
+            } else if (daysToRenew <= 30) {
+                statusColor = "#ffc107"; // Yellow
+                statusText = `${daysToRenew} days (Renew Soon)`;
+            }
+
+            // Create Vehicle Card
+            const card = document.createElement("div");
+            card.style.background = "#fff";
+            card.style.border = "1px solid #eee";
+            card.style.borderRadius = "12px";
+            card.style.padding = "15px";
+            card.style.boxShadow = "0 2px 5px rgba(0,0,0,0.05)";
+            card.style.textAlign = "left";
+
+            card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                <div>
+                    <h3 style="margin: 0; color: var(--primary-color);">${vehicle.vehicle_number}</h3>
+                    <p style="margin: 0; font-size: 0.9em; color: #666;">${vehicle.vehicle_class}</p>
+                </div>
+                <span style="background: ${statusColor}; color: ${daysToRenew <= 30 && daysToRenew >= 0 ? '#000' : '#fff'}; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600;">
+                    ${statusText}
+                </span>
+            </div>
+            <div style="font-size: 0.9em; color: #444;">
+                <p style="margin: 5px 0;"><strong>License No:</strong> ${vehicle.licence_number}</p>
+                <p style="margin: 5px 0;"><strong>Expiry:</strong> ${vehicle.licence_expiry_date}</p>
+                <p style="margin: 5px 0;"><strong>Owner:</strong> ${vehicle.owner_name}</p>
+            </div>
+            <button class="view-details-btn" style="margin-top: 10px; width: 100%; padding: 8px; background: #f8f9fa; border: 1px solid #ddd; color: #333; border-radius: 6px; cursor: pointer;">View Full Details</button>
+        `;
+
+            // Remove "No vehicles" text if present
+            if (vehiclesList.querySelector("p")?.textContent === "No vehicles added yet.") {
+                vehiclesList.innerHTML = "";
+            }
+
+            // Add click handler for details
+            card.querySelector(".view-details-btn").onclick = () => showVehicleDetails(vehicle);
+
+            vehiclesList.prepend(card); // Add new vehicle to top
+
+        } catch (error) {
+            errorMsg.textContent = error.message;
+        }
+    }
+
+    // === GLOBAL EVENT LISTENERS ===
+
+    const loginForm = document.getElementById("login-form");
+    if (loginForm) loginForm.addEventListener("submit", handleLogin);

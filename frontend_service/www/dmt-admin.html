@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>DMT Admin</title>
+    <link rel="stylesheet" href="style.css?v=7.0">
+</head>
+
+<body>
+    <header>
+        <h1>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Emblem_of_Sri_Lanka.svg/1200px-Emblem_of_Sri_Lanka.svg.png"
+                alt="Emblem" style="height: 45px;">
+            <span>DMT Admin Panel</span>
+        </h1>
+        <div class="header-controls">
+            <span id="user-email"></span>
+            <button id="dashboard-link">Back</button>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
+
+    <main class="admin-container">
+        <!-- Main Menu -->
+        <div id="admin-menu" class="menu-grid">
+            <div class="menu-card" onclick="showSection('section-users')">
+                <div class="icon">👥</div>
+                <h3>User Management</h3>
+                <p>Create and manage system users</p>
+            </div>
+            <div class="menu-card" onclick="showSection('section-vehicle')">
+                <div class="icon">🚗</div>
+                <h3>Register Vehicle</h3>
+                <p>Add new vehicles to the registry</p>
+            </div>
+            <div class="menu-card" onclick="showSection('section-renew')">
+                <div class="icon">📅</div>
+                <h3>Renew License</h3>
+                <p>Update vehicle license expiry</p>
+            </div>
+        </div>
+
+        <!-- Section: User Management -->
+        <section id="section-users" class="admin-section hidden">
+            <button class="back-btn" onclick="showMenu()">← Back to Menu</button>
+            <div class="card">
+                <h2>User Management</h2>
+                <form id="create-user-form">
+                    <div class="input-group">
+                        <label for="new-email">Email Address</label>
+                        <input type="email" id="new-email" placeholder="user@example.com" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="new-password">Password</label>
+                        <input type="password" id="new-password" placeholder="Set a password" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="new-role">User Role</label>
+                        <select id="new-role" required>
+                            <option value="public">Public User</option>
+                            <option value="police">Police Officer</option>
+                            <option value="dmt">DMT Administrator</option>
+                        </select>
+                    </div>
+                    <p id="create-error" class="error" style="text-align: center;"></p>
+                    <p id="create-success" class="success" style="text-align: center;"></p>
+                    <button type="submit" style="width: 100%;">Create User Account</button>
+                </form>
+
+                <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="margin: 0; font-size: 1em; color: #555;">System Users</h3>
+                        <button id="load-users-btn" style="padding: 5px 10px; font-size: 0.8em;">Refresh</button>
+                    </div>
+                    <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                        <table id="users-table" style="font-size: 0.9em;">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Vehicle Management -->
+        <section id="section-vehicle" class="admin-section hidden">
+            <button class="back-btn" onclick="showMenu()">← Back to Menu</button>
+            <div class="card">
+                <h2>Register New Vehicle</h2>
+                <form id="create-vehicle-form">
+                    <div class="input-group">
+                        <label>Vehicle Number (Plate)</label>
+                        <input type="text" id="v-plate" placeholder="e.g., WP-CAB-1234" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Revenue License No</label>
+                        <input type="text" id="v-license" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="input-group">
+                            <label>Class</label>
+                            <input type="text" id="v-class" placeholder="e.g., Car" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Fuel</label>
+                            <input type="text" id="v-fuel" placeholder="e.g., Petrol" required>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Owner Name</label>
+                        <input type="text" id="v-owner" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Owner Address</label>
+                        <input type="text" id="v-address" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="input-group">
+                            <label>NIC</label>
+                            <input type="text" id="v-nic" required>
+                        </div>
+                        <div class="input-group">
+                            <label>District</label>
+                            <input type="text" id="v-district" required>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="input-group">
+                            <label>Valid From</label>
+                            <input type="date" id="v-valid-from" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Expiry</label>
+                            <input type="date" id="v-expiry" required>
+                        </div>
+                    </div>
+                    <p id="vehicle-error" class="error"></p>
+                    <p id="vehicle-success" class="success"></p>
+                    <button type="submit" style="width: 100%; background: #28a745;">Register Vehicle</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Section: Renew License -->
+        <section id="section-renew" class="admin-section hidden">
+            <button class="back-btn" onclick="showMenu()">← Back to Menu</button>
+            <div class="card">
+                <h2>Renew License</h2>
+                <form id="renew-license-form">
+                    <div class="input-group">
+                        <label>Vehicle Number (Plate)</label>
+                        <input type="text" id="renew-plate" placeholder="Enter Plate Number" required>
+                    </div>
+                    <div class="input-group">
+                        <label>New Expiry Date</label>
+                        <input type="date" id="renew-expiry" required>
+                    </div>
+                    <p id="renew-error" class="error"></p>
+                    <p id="renew-success" class="success"></p>
+                    <button type="submit" style="width: 100%; background: #007bff;">Renew License</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js?v=7.0" type="module"></script>
+    <script type="module">
+        import { initDmtAdminPage, showSection, showMenu } from './app.js?v=7.0';
+        window.showSection = showSection;
+        window.showMenu = showMenu;
+        initDmtAdminPage();
+    </script>
+</body>
+
+</html>

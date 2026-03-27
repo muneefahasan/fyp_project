@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+psycopg2-binary
+SQLAlchemy
+python-jose[cryptography]
+python-multipart
+fastapi-cors
+pydantic[email]
+passlib
+argon2-cffi

@@ -1,0 +1,33 @@
+run this command on cmd
+cd Desktop\vehicle_system_project
+psql -U postgres -f data_setup.sql
+
+
+check this command one by one
+Log in from CMD	
+psql -U postgres
+
+List all databases	
+\l
+
+Connect to database	
+\c dmt_users
+
+List tables in database	
+\dt
+
+Check table structure	
+\d users 
+\d vehicles
+						
+Check data in table	
+SELECT * FROM users;
+
+Quit psql	
+\q
+
+
+npx http-server www  //frontend_service
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload  //auth_service
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload  //registry_service
+uvicorn main:app --host 0.0.0.0 --port 8002 --reload  //anpr_service

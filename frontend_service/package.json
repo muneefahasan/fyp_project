@@ -1,0 +1,11 @@
+{
+  "name": "vehicle-system-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Vehicle System",
+  "scripts": {
+    "build": "echo 'No build step needed for plain HTML/JS'",
+    "start": "npx serve www"
+  },
+  "author": "",
+  "license": "ISC"
+}

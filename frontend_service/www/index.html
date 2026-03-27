@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Vehicle System</title>
+
+    <link rel="stylesheet" href="style.css?v=7.0">
+</head>
+
+<body>
+    <main style="justify-content: center;">
+        <form id="login-form" class="auth-form">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Emblem_of_Sri_Lanka.svg/1200px-Emblem_of_Sri_Lanka.svg.png"
+                    alt="Emblem of Sri Lanka" style="width: 90px; height: auto;">
+            </div>
+            <h2>Vehicle Information System</h2>
+            <p>Department of Motor Traffic</p>
+
+            <div class="input-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="Enter your email" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+
+            <p id="error-msg" class="error" style="text-align: center; margin: 10px 0;"></p>
+
+            <button type="submit" style="width: 100%;">Login to System</button>
+        </form>
+    </main>
+
+    <script src="app.js?v=7.0" type="module"></script>
+
+</body>
+
+</html>

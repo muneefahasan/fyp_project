@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=7.0">
+</head>
+
+<body>
+    <header>
+        <h1>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Emblem_of_Sri_Lanka.svg/1200px-Emblem_of_Sri_Lanka.svg.png"
+                alt="Emblem" style="height: 45px;">
+            <span>Vehicle System</span>
+        </h1>
+        <div class="header-controls">
+            <span id="user-email"></span>
+            <button id="logout-btn">Logout</button>
+        </div>
+    </header>
+
+    <main>
+        <div id="dashboard-content">
+            <p style="text-align: center; color: #666;">Loading your dashboard...</p>
+        </div>
+    </main>
+
+    <!-- Modal for Vehicle Details -->
+    <div id="modal-container" class="modal-hidden">
+        <div id="fullVehicleDetailsContainer" style="position: relative;">
+            <button id="modal-close-btn"
+                style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer; font-size: 1.2em; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 10;">✕</button>
+            <h2 style="margin: 0 0 20px 0;">Full Vehicle Details</h2>
+            <div id="modal-body">
+                <!-- Vehicle details will be inserted here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=7.0" type="module"></script>
+    <script type="module">
+        import { loadDashboard } from './app.js?v=7.0';
+        loadDashboard(); // Run the dashboard logic
+    </script>
+</body>
+
+</html>
